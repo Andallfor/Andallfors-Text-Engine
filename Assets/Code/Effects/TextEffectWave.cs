@@ -6,21 +6,20 @@ namespace Andallfor.TextEngine {
 internal class TextEffectWaveHandler : TextEffectHandler {
     private List<TextEffectWaveData> activeEffects = new List<TextEffectWaveData>();
     private int lastSeen = -1;
-    private float internalCounter = 0, rateOfChange = 0.25f;
-    private bool running = false;
+    private float internalCounter = 0, rateOfChange = 0.25f, speed, height;
 
-    public override bool update(int i, int offset) {
-        if (running) return true;
+    public TextEffectWaveHandler(float height, float speed) {
+        this.speed = speed;
+        this.height = height;
+    }
+
+    public override bool update(int i, int offset, bool allSent) {
         if (text.textInfo.meshInfo[0].vertexCount == 0) return true;
-
-        running = true;
 
         if (i != lastSeen) {
             if (text.text[i] != ' ') {
                 activeEffects.Add(new TextEffectWaveData() {
-                    height = 1, speed = 1, offset = i,
-                    textIndex = i, meshIndex = i - offset,
-                    baseY = text.textInfo.meshInfo[0].vertices[i - offset].y,
+                    offset = i, textIndex = i, meshIndex = i - offset,
                     initPosition = parent.getCharacterPosition(i - offset)
                 });
             }
@@ -32,7 +31,7 @@ internal class TextEffectWaveHandler : TextEffectHandler {
         text.textInfo.meshInfo[0].vertices.CopyTo(verts, 0);
 
         foreach (var data in activeEffects) {
-            float change = Mathf.Sin(data.speed * 0.5f * (internalCounter + data.offset)) * data.height * 10f;
+            float change = Mathf.Sin(speed * 0.5f * (internalCounter + data.offset)) * height * 10f;
             TextEngineCharacterData tecd = new TextEngineCharacterData(data.initPosition);
             tecd.bl.y += change;
             tecd.br.y += change;
@@ -43,14 +42,13 @@ internal class TextEffectWaveHandler : TextEffectHandler {
         }
 
         internalCounter += rateOfChange;
-        running = false;
 
         return true;
     }
 }
 
 internal struct TextEffectWaveData {
-    public float height, speed, offset, baseY;
+    public float offset;
     public int textIndex, meshIndex;
     public TextEngineCharacterData initPosition;
 }

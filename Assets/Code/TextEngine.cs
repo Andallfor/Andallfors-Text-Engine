@@ -41,16 +41,19 @@ internal class TextEngineInstanceDrawer {
 
         t.text = "";
 
-        effects.Add(new TextEffectWaveHandler());
+        effects.Add(new TextEffectSpreadHandler(0.3f, new Vector2(0.85f, 1.25f), new Vector2(50, -60)));
+        //effects.Add(new TextEffectWaveHandler(1, 1));
+        
         
         updateLoop = new Task(async () => {
             while (true) {
                 if (currentReadingIndex == -1) continue;
                 if (effects.Count > 0) {
                     List<TextEffectHandler> _effects = new List<TextEffectHandler>();
+                    bool allSent = currentReadingIndex == tei.text.Length - 1;
                     foreach (var effect in effects) {
-                        bool response = effect.update(currentReadingIndex, invalidOffset);
-                        if (response) _effects.Add(effect);
+                        bool response = effect.update(currentReadingIndex, invalidOffset, allSent);
+                        if (response || !allSent) _effects.Add(effect);
                     }
 
                     effects = _effects;
@@ -90,6 +93,7 @@ internal class TextEngineInstanceDrawer {
     public async Task<bool> start() {
         foreach (TextEffectHandler teh in effects) teh.init(t, this);
         updateLoop.Start();
+        currentReadingIndex = -1;
 
         for (int i = 0; i < tei.text.Length; i++) {
             currentReadingIndex = i;
@@ -131,7 +135,7 @@ internal class TextEngineInstanceDrawer {
 }
 
 internal struct TextEngineCharacterData {
-    public Vector3 tl, tr, bl, br;    
+    public Vector3 tl, tr, bl, br;
 
     public TextEngineCharacterData(Vector3 all) {
         tl = all;
@@ -153,5 +157,34 @@ internal struct TextEngineCharacterData {
         this.tl = tecd.tl;
         this.tr = tecd.tr;
     }
+
+    public Vector3 center() => (tl + tr + bl + br) / 4f;
+
+    public static TextEngineCharacterData scale(TextEngineCharacterData t, float s) {
+        Vector3 c = t.center();
+        TextEngineCharacterData _t = new TextEngineCharacterData(t);
+
+        _t.tl = (t.tl - c) * (s - 1f);
+        _t.tr = (t.tr - c) * (s - 1f);
+        _t.bl = (t.bl - c) * (s - 1f);
+        _t.br = (t.br - c) * (s - 1f);
+
+        return _t;
+    }
+
+    public static TextEngineCharacterData lerp(TextEngineCharacterData a, TextEngineCharacterData b, float time) => new TextEngineCharacterData(
+        a.bl + (b.bl - a.bl) * time, a.tl + (b.tl - a.tl) * time, a.tr + (b.tr - a.tr) * time, a.br + (b.br - a.br) * time);
+
+    public static TextEngineCharacterData operator +(TextEngineCharacterData a, TextEngineCharacterData b) => new TextEngineCharacterData(
+        a.bl + b.bl, a.tl + b.tl, a.tr + b.tr, a.br + b.br);
+    public static TextEngineCharacterData operator -(TextEngineCharacterData a, TextEngineCharacterData b) => new TextEngineCharacterData(
+        a.bl - b.bl, a.tl - b.tl, a.tr - b.tr, a.br - b.br);
+    
+    public static TextEngineCharacterData operator +(TextEngineCharacterData a, Vector3 b) => new TextEngineCharacterData(
+        a.bl + b, a.tl + b, a.tr + b, a.br + b);
+    public static TextEngineCharacterData operator -(TextEngineCharacterData a, Vector3 b) => new TextEngineCharacterData(
+        a.bl - b, a.tl - b, a.tr - b, a.br - b);
+    
+    public override string ToString() => $"tl: {tl}, tr: {tr}, bl: {bl}, br: {br}";
 }
 }
