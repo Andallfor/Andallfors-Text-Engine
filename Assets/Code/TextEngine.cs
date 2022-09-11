@@ -25,12 +25,13 @@ public class TextEngine
 }
 
 internal class TextEngineInstanceDrawer {
-    public TextEngineInstance tei;
-    public TextMeshProUGUI t;
-    public Task updateLoop;
-    public int waitTimer, currentReadingIndex = -1, invalidOffset = 0;
-    public List<TextEffectHandler> effects = new List<TextEffectHandler>();
-    public Vector3[] characterVerts;
+    private TextEngineInstance tei;
+    private TextMeshProUGUI t;
+    private Task updateLoop;
+    private int waitTimer, currentReadingIndex = -1, invalidOffset = 0;
+    private List<TextEffectHandler> effects = new List<TextEffectHandler>();
+    private Vector3[] characterVerts;
+    private Color32[] characterColors;
     private TECharacter[] characters;
     public bool isDirty;
 
@@ -41,8 +42,8 @@ internal class TextEngineInstanceDrawer {
 
         t.text = "";
 
-        effects.Add(new TextEffectSpreadHandler(0.3f, new Vector2(0.85f, 1.25f), new Vector2(50, -60)));
-        //effects.Add(new TextEffectFadeInHandler(0.3f, 35));
+        //effects.Add(new TextEffectSpreadHandler(0.3f, new Vector2(0.85f, 1.25f), new Vector2(50, -60)));
+        effects.Add(new TextEffectFadeInHandler(0.5f, new Vector2(25, -100), new Color32(255, 255, 255, 0)));
         //effects.Add(new TextEffectWaveHandler(1, 1));
         
         
@@ -64,6 +65,7 @@ internal class TextEngineInstanceDrawer {
                     isDirty = false;
                     UnityMainThreadDispatcher.Instance().Enqueue(() => {
                         t.textInfo.meshInfo[0].mesh.vertices = characterVerts;
+                        t.textInfo.meshInfo[0].mesh.colors32 = characterColors;
                         t.UpdateGeometry(t.textInfo.meshInfo[0].mesh, 0);
                     });
                 }
@@ -76,6 +78,7 @@ internal class TextEngineInstanceDrawer {
         t.text = tei.text;
         t.ForceMeshUpdate(true, true);
         Vector3[] verts = t.textInfo.meshInfo[0].vertices;
+        Color32 color = t.color;
         List<TECharacter> c = new List<TECharacter>();
         int offset = 0;
         for (int i = 0; i < tei.text.Length; i++) {
@@ -87,6 +90,7 @@ internal class TextEngineInstanceDrawer {
                 i - offset,
                 tei.text[i],
                 new TECPosition(verts[index], verts[index + 1], verts[index + 2], verts[index + 3]),
+                new TECColor32(color, color, color, color),
                 this);
             c.Add(tec);
         }
@@ -97,6 +101,7 @@ internal class TextEngineInstanceDrawer {
         t.UpdateGeometry(t.textInfo.meshInfo[0].mesh, 0);
 
         characterVerts = new Vector3[t.textInfo.meshInfo[0].vertices.Length];
+        characterColors = new Color32[t.textInfo.meshInfo[0].colors32.Length];
     }
 
     public async Task<bool> start() {
@@ -112,6 +117,7 @@ internal class TextEngineInstanceDrawer {
                 continue;
             }
 
+            // TODO: if we have custom effects running, defer this to them (so we wont have instances where the normal letters appear for a split second due to desync)
             TECharacter c = getCharacter(i - invalidOffset);
             c.setCharacterPosition(c.originalPosition);
             
@@ -129,6 +135,12 @@ internal class TextEngineInstanceDrawer {
         characterVerts[tec.meshIndex * 4 + 1] = tec.position.tl;
         characterVerts[tec.meshIndex * 4 + 2] = tec.position.tr;
         characterVerts[tec.meshIndex * 4 + 3] = tec.position.br;
+
+        characterColors[tec.meshIndex * 4] = tec.color.bl;
+        characterColors[tec.meshIndex * 4 + 1] = tec.color.tl;
+        characterColors[tec.meshIndex * 4 + 2] = tec.color.tr;
+        characterColors[tec.meshIndex * 4 + 3] = tec.color.br;
+
         isDirty = true;
     }
     
