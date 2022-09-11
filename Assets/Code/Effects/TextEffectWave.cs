@@ -13,18 +13,15 @@ internal class TextEffectWaveHandler : TextEffectHandler {
         this.height = height;
     }
 
-    public override bool update(int i, int offset, bool allSent) {
+    public override bool update(int reading, int offset) {
         if (text.textInfo.meshInfo[0].vertexCount == 0) return true;
 
-        if (i != lastSeen) {
-            if (text.text[i] != ' ') {
-                activeEffects.Add(new TextEffectWaveData() {
-                    offset = i, textIndex = i, meshIndex = i - offset,
-                    initPosition = parent.getCharacterPosition(i - offset)
-                });
-            }
+        if (reading != lastSeen && parent.characterHasMesh(text.text[reading])) {
+            TECharacter c = parent.getCharacter(reading - offset);
+            activeEffects.Add(new TextEffectWaveData() {
+                character = c, offset = reading});
 
-            lastSeen = i;
+            lastSeen = reading;
         }
 
         Vector3[] verts = new Vector3[text.textInfo.meshInfo[0].vertices.Length];
@@ -32,13 +29,13 @@ internal class TextEffectWaveHandler : TextEffectHandler {
 
         foreach (var data in activeEffects) {
             float change = Mathf.Sin(speed * 0.5f * (internalCounter + data.offset)) * height * 10f;
-            TextEngineCharacterData tecd = new TextEngineCharacterData(data.initPosition);
+            TECPosition tecd = new TECPosition(data.character.originalPosition);
             tecd.bl.y += change;
             tecd.br.y += change;
             tecd.tl.y += change;
             tecd.tr.y += change;
 
-            parent.setCharacterPosition(data.meshIndex, tecd);
+            data.character.setCharacterPosition(tecd);
         }
 
         internalCounter += rateOfChange;
@@ -49,7 +46,6 @@ internal class TextEffectWaveHandler : TextEffectHandler {
 
 internal struct TextEffectWaveData {
     public float offset;
-    public int textIndex, meshIndex;
-    public TextEngineCharacterData initPosition;
+    public TECharacter character;
 }
 }

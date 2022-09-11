@@ -11,6 +11,6 @@ internal abstract class TextEffectHandler {
         this.text = text;
         this.parent = parent;
     }
-    public abstract bool update(int i, int offset, bool allSent);
+    public abstract bool update(int reading, int offset);
 }
 }

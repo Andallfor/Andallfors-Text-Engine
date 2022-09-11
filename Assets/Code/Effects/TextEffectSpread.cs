@@ -20,45 +20,43 @@ internal class TextEffectSpreadHandler : TextEffectHandler {
         this.timeChange = (1f / animationTime) * (1f / 60f);
     }
 
-    public override bool update(int i, int offset, bool allSent) {
+    public override bool update(int reading, int offset) {
         if (text.textInfo.meshInfo[0].vertexCount == 0) return true;
 
-        if (i != lastSeen) {
-            if (text.text[i] != ' ') {
+        if (reading != lastSeen && parent.characterHasMesh(text.text[reading])) {
                 System.Random r = new System.Random();
                 float x = (float) r.NextDouble() * spreadRange.x * 2f - spreadRange.x;
                 float y = (float) r.NextDouble() * spreadRange.y * 2f - spreadRange.y;
                 float s = scaleRange.x + (scaleRange.y - scaleRange.x) * (float) r.NextDouble();
-                var off = new TextEngineCharacterData(new Vector3(x, y, 0));
 
-                TextEngineCharacterData pos = parent.getCharacterPosition(i - offset);
+                var off = new TECPosition(new Vector3(x, y, 0));
+
+                TECharacter c = parent.getCharacter(reading - offset);
                 activeEffects.Add(new TextEffectSpreadData() {
-                    textIndex = i, meshIndex = i - offset,
-                    targetPosition = pos,
-                    initalPosition = pos + off,
+                    character = c,
+                    initalPosition = c.originalPosition + off,
                     scale = s
                 });
 
-                steps[i - offset] = 0;
+                steps[c.meshIndex] = 0;
 
-                parent.setCharacterPosition(i - offset, (pos + off) + TextEngineCharacterData.scale(pos, s));
-            }
+                c.setCharacterPosition(c.originalPosition + off);
 
-            lastSeen = i;
+            lastSeen = reading;
         }
 
         if (activeEffects.Count == 0) return true;
         bool stillMoving = false;
 
         foreach (var data in activeEffects) {
-            float step = steps[data.meshIndex];
+            float step = steps[data.character.meshIndex];
             if (step >= 1) continue;
-            else if (step + timeChange >= 1) parent.setCharacterPosition(data.meshIndex, data.targetPosition);
+            else if (step + timeChange >= 1) data.character.setCharacterPosition(data.character.originalPosition);
             else {
-                TextEngineCharacterData pos = TextEngineCharacterData.lerp(data.initalPosition, data.targetPosition, interpPos(step));
-                pos += TextEngineCharacterData.scale(data.targetPosition, data.scale - (data.scale - 1f) * step * step * step);
-                parent.setCharacterPosition(data.meshIndex, pos);
-                steps[data.meshIndex] = step + timeChange;
+                TECPosition pos = TECPosition.lerp(data.initalPosition, data.character.originalPosition, interpPos(step));
+                pos += TECPosition.scale(data.character.originalPosition, data.scale - (data.scale - 1f) * step * step * step);
+                data.character.setCharacterPosition(pos);
+                steps[data.character.meshIndex] = step + timeChange;
                 stillMoving = true;
             }
             
@@ -67,16 +65,20 @@ internal class TextEffectSpreadHandler : TextEffectHandler {
         return stillMoving;
     }
 
-    private float interpPos(float x) => (float)
-        (-70404137.6188 * Math.Pow(x, 5.93504071248) +
-        7968487.36242 * Math.Pow(x, 5.93120866927) +
-        62435651.2044 * Math.Pow(x, 5.93552981156) +
-        0.0575461897356);
+    private float interpPos(float x) {
+        float n1 = 7.5625f;
+        float d1 = 2.75f;
+
+        if (x < 1f / d1) return n1 * x * x;
+        else if (x < 2f / d1) return n1 * (x -= 1.5f / d1) * x + 0.75f;
+        else if (x < 2.5f / d1) return n1 * (x -= 2.25f / d1) * x + 0.9375f;    
+        else return n1 * (x -= 2.625f / d1) * x + 0.984375f;
+    }
 }
 
 internal struct TextEffectSpreadData {
-    public int textIndex, meshIndex;
+    public TECharacter character;
     public float scale;
-    public TextEngineCharacterData targetPosition, initalPosition;
+    public TECPosition initalPosition;
 }
 }
